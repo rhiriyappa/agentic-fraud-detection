@@ -47,11 +47,11 @@ side by side, how each type of "agentic-ness" changes the outcome.
                                       │
                                       │ explain_decision(txn, action, risk, reasons)
                                       ▼
-                          ┌────────────────────┐   HTTP /api/generate   ┌─────────────────────┐
-                          │   src/llm.py       │ ─────────────────────▶ │   Ollama server     │
-                          │ (client + offline  │ ◀───────────────────── │   Mistral 7B (local)│
-                          │  template fallback)│      completion        │   no API key needed │
-                          └────────────────────┘                        └─────────────────────┘
+                          ┌────────────────────┐ HTTP/api/generate ┌───────────────────┐
+                          │   src/llm.py       │──────────────────▶│ Ollama server     │
+                          │ (client + offline  │ ──────────────────│ Mistral 7B (local)│
+                          │  template fallback)│      completion   │ no API key needed │
+                          └────────────────────┘                   └───────────────────┘
 
               │              │             │             │             │
               └──────────────┴────────┬────┴─────────────┴─────────────┘
