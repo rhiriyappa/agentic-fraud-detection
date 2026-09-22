@@ -1,0 +1,12 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+data/fraud_agents.db
+*.db-journal
+.DS_Store
+.idea/
+.vscode/
+*.egg-info/
