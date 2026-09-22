@@ -15,6 +15,66 @@ payment-fraud use case:
 All five agents run over the **same 50 synthetic transactions** so you can see,
 side by side, how each type of "agentic-ness" changes the outcome.
 
+## Reference architecture
+
+```
+┌────────────────────────────────┐
+│ data/generate_transactions.py    │
+│   (Faker, seeded RNG)             │
+└────────────────┬─────────────────┘
+                  │ writes 50 transactions
+                  ▼
+┌──────────────────────────────────────────┐
+│         SQLite -- data/fraud_agents.db      │
+│      tables: transactions, decisions         │
+└────────────────────┬─────────────────────────┘
+                      │ perceive(): txn (+ rolling history for model-based)
+                      ▼
+┌───────────────────────────────────────────────────────────────────┐
+│                       src/orchestrator.py                           │
+│              run_all()  ->  { agent_name: [Decision, ...] }          │
+└───┬─────────────┬─────────────┬─────────────┬─────────────┬─────────┘
+    │              │             │             │             │
+    ▼              ▼             ▼             ▼             ▼
+ Simple        Model-Based    Goal-Based    Utility-Based   Learning
+ Reflex          Reflex        Agent          Agent          Agent
+(condition-   (condition-    (searches      (expected-     (scikit-learn
+ action on     action on      action space   utility        SGDClassifier,
+ txn only,     txn + SQLite   for goal-      argmax over    trained on
+ no memory)    history)       satisfying     weighted        labels, updates
+                               least-friction  cost/benefit   via learn_one())
+                               action)         table)
+                                  │
+                                  │ explain_decision(txn, action, risk, reasons)
+                                  ▼
+                          ┌────────────────┐   HTTP /api/generate   ┌───────────────────┐
+                          │   src/llm.py     │ ─────────────────────▶ │   Ollama server     │
+                          │ (client + offline │ ◀───────────────────── │   Mistral 7B (local) │
+                          │  template fallback)│      completion        │   no API key needed  │
+                          └────────────────┘                         └───────────────────┘
+
+    │              │             │             │             │
+    └──────────────┴──────┬──────┴─────────────┴─────────────┘
+                           ▼
+             Decision{ action, risk_score, reasons, explanation }
+                           │ persisted
+                           ▼
+             SQLite `decisions` table  (per-agent audit trail)
+                           │
+              ┌────────────┴─────────────┐
+              ▼                          ▼
+   scripts/run_demo.py            api/main.py (FastAPI)
+   Rich CLI: comparison table      HTTP endpoints + /docs:
+   + precision/recall scoreboard    evaluate / evaluate-all /
+                                      learn / scoreboard
+```
+
+Only the **goal-based agent** calls out to Mistral (for its analyst-facing
+narration); the other four agents are deliberately dependency-free rule/math/
+ML logic so the differences between agent *types* stay easy to read in the
+source. If Ollama isn't reachable, `src/llm.py` transparently falls back to a
+templated explanation string, so the whole pipeline still runs offline.
+
 ## Tech stack (all open source)
 
 - **Database**: SQLite (stdlib `sqlite3`, no ORM -- two tables: `transactions`, `decisions`)
