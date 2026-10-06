@@ -31,10 +31,7 @@ CHARGEBACK_FEE = 25.0          # flat fee incurred on a fraud chargeback
 GOODWILL_COST_DECLINE = 15.0    # CLV/trust cost of wrongly declining a legit customer
 REVIEW_OP_COST = 4.0             # analyst labor cost of a manual review
 REVIEW_DELAY_GOODWILL_COST = 2.0  # minor friction cost even for legit reviewed customers
-REVIEW_ACCURACY = 0.90             # manual review isn't infallible either
 STEP_UP_ABANDON_RATE = 0.15       # fraction of legit customers who abandon at 2FA
-STEP_UP_FRICTION_COST = 15.0        # blended goodwill/conversion cost when a legit
-                                      # customer is challenged with step-up auth
 STEP_UP_FRAUD_DETERRENCE = 0.80    # fraction of fraud attempts stopped by 2FA
 
 HIGH_RISK_CATEGORIES = {"crypto_exchange", "gambling", "money_transfer", "gift_cards"}
@@ -63,16 +60,11 @@ class UtilityBasedAgent(Agent):
             ),
             Action.STEP_UP_AUTH: (
                 p_legit * (1 - STEP_UP_ABANDON_RATE) * (MARGIN_RATE * amount)
-                - p_legit * STEP_UP_ABANDON_RATE * STEP_UP_FRICTION_COST
+                - p_legit * STEP_UP_ABANDON_RATE * (GOODWILL_COST_DECLINE * 0.5)
                 - p_fraud * (1 - STEP_UP_FRAUD_DETERRENCE) * (amount + CHARGEBACK_FEE)
             ),
             Action.MANUAL_REVIEW: (
-                p_legit * (
-                    REVIEW_ACCURACY * (MARGIN_RATE * amount)
-                    - (1 - REVIEW_ACCURACY) * GOODWILL_COST_DECLINE
-                    - REVIEW_DELAY_GOODWILL_COST
-                )
-                - p_fraud * (1 - REVIEW_ACCURACY) * (amount + CHARGEBACK_FEE)
+                p_legit * (MARGIN_RATE * amount - REVIEW_DELAY_GOODWILL_COST)
                 - REVIEW_OP_COST
             ),
         }
@@ -97,9 +89,9 @@ class UtilityBasedAgent(Agent):
         simple features). Deliberately independent of the other agents so
         this agent's utility trade-off is easy to reason about in isolation.
         """
-        z = -4.5
-        z += 1.2 * (txn.amount / 1000.0)
-        z += 1.3 if txn.country != txn.user_home_country else 0.0
+        z = -3.0
+        z += 1.6 * (txn.amount / 1000.0)
+        z += 1.4 if txn.country != txn.user_home_country else 0.0
         z += 1.8 if txn.merchant_category in HIGH_RISK_CATEGORIES else 0.0
-        z += 0.5 if txn.channel == "online" else 0.0
+        z += 0.6 if txn.channel == "online" else 0.0
         return 1.0 / (1.0 + math.exp(-z))

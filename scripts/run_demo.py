@@ -3,14 +3,18 @@ prints a side-by-side comparison, plus precision/recall against the
 ground-truth fraud labels.
 
 Usage:
-    python scripts/run_demo.py                 # uses Mistral via Ollama if reachable
-    python scripts/run_demo.py --no-llm         # skip LLM explanations (faster, offline)
-    python scripts/run_demo.py --txn <id>        # deep-dive a single transaction
+    python scripts/run_demo.py                       # Mistral explains flagged (non-APPROVE) goal-based decisions
+    python scripts/run_demo.py --llm-mode off         # no LLM calls (fastest, fully offline)
+    python scripts/run_demo.py --llm-mode all          # explain every goal-based decision
+    python scripts/run_demo.py --no-cache               # ignore the SQLite LLM cache
+    python scripts/run_demo.py -v                        # log every LLM call
+    python scripts/run_demo.py --txn <id>                 # deep-dive a single transaction
 """
 
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -23,7 +27,8 @@ from rich.panel import Panel
 from src import db, llm
 from src.orchestrator import run_all, score, build_agents
 
-console = Console()
+# To export the rich console output to HTML, initialize the console with record=True. This will capture all output and allow us to save it later.
+console = Console(record=True)
 
 AGENT_ORDER = ["simple_reflex", "model_based_reflex", "goal_based", "utility_based", "learning_agent"]
 AGENT_LABELS = {
@@ -76,12 +81,25 @@ def print_scoreboard(transactions, results):
     console.print(table)
 
 
-def deep_dive(transaction_id: str, use_llm: bool):
+def print_llm_summary(run):
+    s = run.llm_stats
+    goal = run.decisions["goal_based"]
+    explained = sum(1 for d in goal if d.explanation)
+    console.print(
+        f"[bold]LLM usage[/] (run {run.run_id}, mode={run.llm_mode}): "
+        f"{explained}/{len(goal)} goal-based decisions explained -> "
+        f"{s.requests} Mistral requests ({s.ok} ok, {s.errors} failed), "
+        f"{s.cache_hits} cache hits, {s.fallbacks} template fallbacks, "
+        f"avg latency {s.avg_latency_s:.2f}s"
+    )
+
+
+def deep_dive(transaction_id: str, llm_mode: str, use_cache: bool):
     txn = db.fetch_transaction(transaction_id)
     if not txn:
         console.print(f"[red]No transaction with id {transaction_id}[/]")
         return
-    agents = build_agents(use_llm=use_llm)
+    agents = build_agents(llm_mode=llm_mode, use_cache=use_cache)
     agents["learning_agent"].fit(db.fetch_all_transactions())
 
     console.print(Panel(
@@ -105,12 +123,19 @@ def deep_dive(transaction_id: str, use_llm: bool):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--no-llm", action="store_true", help="skip Mistral explanations")
+    parser.add_argument("--llm-mode", choices=["off", "flagged", "all"], default="flagged",
+                        help="when Mistral explains goal-based decisions (default: flagged)")
+    parser.add_argument("--no-cache", action="store_true", help="ignore the SQLite LLM response cache")
+    parser.add_argument("-v", "--verbose", action="store_true", help="log every LLM call")
     parser.add_argument("--txn", type=str, default=None, help="deep-dive a single transaction id")
     args = parser.parse_args()
 
-    use_llm = not args.no_llm
-    if use_llm and not llm.is_available():
+    logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING,
+                        format="%(asctime)s %(name)s: %(message)s")
+    db.init_db()
+
+    use_cache = not args.no_cache
+    if args.llm_mode != "off" and not llm.is_available():
         console.print(
             "[yellow]Ollama/Mistral not reachable at "
             f"{llm.OLLAMA_HOST} -- falling back to template explanations. "
@@ -118,7 +143,7 @@ def main():
         )
 
     if args.txn:
-        deep_dive(args.txn, use_llm=use_llm)
+        deep_dive(args.txn, llm_mode=args.llm_mode, use_cache=use_cache)
         return
 
     transactions = db.fetch_all_transactions()
@@ -129,10 +154,17 @@ def main():
     console.print(f"[bold]Loaded {len(transactions)} transactions "
                    f"({sum(t.is_fraud for t in transactions)} labeled fraud)[/]\n")
 
-    results = run_all(transactions, use_llm=use_llm)
-    print_comparison_table(transactions, results)
+    run = run_all(transactions, llm_mode=args.llm_mode, use_cache=use_cache)
+    print_comparison_table(transactions, run.decisions)
     console.print()
-    print_scoreboard(transactions, results)
+    print_scoreboard(transactions, run.decisions)
+    console.print()
+    print_llm_summary(run)
+
+    Path("output").mkdir(exist_ok=True)
+    #console.save_html("output/agent_decisions.html")
+    #console.save_svg("output/agent_decisions.svg")
+    
 
 
 if __name__ == "__main__":

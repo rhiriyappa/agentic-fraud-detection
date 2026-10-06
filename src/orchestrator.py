@@ -5,6 +5,10 @@ behaves differently on the exact same data.
 
 from __future__ import annotations
 
+import os
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+
 from src.models import Transaction, Decision, Action
 from src.agents import (
     SimpleReflexAgent,
@@ -13,38 +17,66 @@ from src.agents import (
     UtilityBasedAgent,
     LearningAgent,
 )
-from src import db
+from src import db, llm
 
 # Actions considered a "block" of the transaction, for precision/recall scoring.
 BLOCKING_ACTIONS = {Action.DECLINE, Action.MANUAL_REVIEW, Action.STEP_UP_AUTH}
 
+# Ollama serves one request at a time by default, so extra workers only queue
+# behind each other (and inflate latency toward the request timeout). Raise this
+# together with OLLAMA_NUM_PARALLEL.
+LLM_MAX_WORKERS = int(os.environ.get("LLM_MAX_WORKERS", "1"))
 
-def build_agents(use_llm: bool = True) -> dict:
+
+@dataclass
+class RunResult:
+    run_id: str
+    llm_mode: str
+    decisions: dict[str, list[Decision]]
+    llm_stats: llm.LLMStats
+
+
+def build_agents(llm_mode: str = "flagged", defer_llm: bool = False, use_cache: bool = True) -> dict:
     return {
         "simple_reflex": SimpleReflexAgent(),
         "model_based_reflex": ModelBasedReflexAgent(),
-        "goal_based": GoalBasedAgent(use_llm=use_llm),
+        "goal_based": GoalBasedAgent(llm_mode=llm_mode, defer_llm=defer_llm, use_cache=use_cache),
         "utility_based": UtilityBasedAgent(),
         "learning_agent": LearningAgent(),
     }
 
 
-def run_all(transactions: list[Transaction] | None = None, use_llm: bool = True,
-            persist: bool = True) -> dict[str, list[Decision]]:
+def run_all(transactions: list[Transaction] | None = None, llm_mode: str = "flagged",
+            persist: bool = True, use_cache: bool = True) -> RunResult:
     transactions = transactions or db.fetch_all_transactions()
-    agents = build_agents(use_llm=use_llm)
+    run_id = db.new_run_id()
+    stats_before = llm.get_stats()
+
+    # Decisions are computed first without the LLM; explanations are then
+    # filled in concurrently and only for decisions that need one.
+    agents = build_agents(llm_mode=llm_mode, defer_llm=True, use_cache=use_cache)
 
     # The learning agent needs to be trained before it can decide anything.
     agents["learning_agent"].fit(transactions)
 
-    results: dict[str, list[Decision]] = {name: [] for name in agents}
-    for name, agent in agents.items():
-        for txn in transactions:
-            decision = agent.run(txn)
-            results[name].append(decision)
-            if persist:
-                db.save_decision(decision)
-    return results
+    results: dict[str, list[Decision]] = {
+        name: [agent.run(txn) for txn in transactions] for name, agent in agents.items()
+    }
+
+    goal: GoalBasedAgent = agents["goal_based"]
+    by_id = {t.transaction_id: t for t in transactions}
+    pending = [d for d in results["goal_based"] if goal.should_explain(d.action)]
+    if pending:
+        with ThreadPoolExecutor(max_workers=LLM_MAX_WORKERS) as pool:
+            texts = pool.map(lambda d: goal.explain(d, by_id[d.transaction_id]), pending)
+            for decision, text in zip(pending, texts):
+                decision.explanation = text
+
+    stats = llm.get_stats().minus(stats_before)
+    if persist:
+        db.save_decisions([d for ds in results.values() for d in ds], run_id)
+        db.save_run(run_id, llm_mode, len(transactions), stats.as_dict())
+    return RunResult(run_id=run_id, llm_mode=llm_mode, decisions=results, llm_stats=stats)
 
 
 def score(transactions: list[Transaction], decisions: list[Decision]) -> dict:

@@ -37,13 +37,39 @@ GOAL_RISK_CEILING = {
 }
 
 
+LLM_MODES = ("off", "flagged", "all")
+
+
 class GoalBasedAgent(Agent):
+    """llm_mode controls when Mistral narrates a decision:
+      off      never (pure rule/search logic)
+      flagged  only when the action is not APPROVE (default; APPROVEs need no analyst)
+      all      every decision
+
+    defer_llm=True skips the inline call so a batch runner can call
+    `explain()` for many decisions concurrently.
+    """
+
     name = "goal_based"
 
-    def __init__(self, use_llm: bool = True):
+    def __init__(self, llm_mode: str = "flagged", defer_llm: bool = False, use_cache: bool = True):
+        if llm_mode not in LLM_MODES:
+            raise ValueError(f"llm_mode must be one of {LLM_MODES}, got {llm_mode!r}")
         self._reflex = SimpleReflexAgent()
         self._model_based = ModelBasedReflexAgent()
-        self.use_llm = use_llm
+        self.llm_mode = llm_mode
+        self.defer_llm = defer_llm
+        self.use_cache = use_cache
+
+    def should_explain(self, action: Action) -> bool:
+        return self.llm_mode == "all" or (self.llm_mode == "flagged" and action != Action.APPROVE)
+
+    def explain(self, decision: Decision, txn: Transaction) -> str:
+        signals = [r for r in decision.reasons if not r.startswith("goal search:")]
+        return llm.explain_decision(
+            txn, decision.action.value, decision.risk_score,
+            signals or ["baseline risk"], use_cache=self.use_cache,
+        )
 
     def perceive(self, transaction: Transaction) -> dict:
         # Consult both lower-level agents as world models to estimate risk.
@@ -72,15 +98,13 @@ class GoalBasedAgent(Agent):
 
         reasons = signals + [f"goal search: {' | '.join(search_trace)}"]
 
-        explanation = ""
-        if self.use_llm:
-            explanation = llm.explain_decision(txn, chosen.value, risk, signals or ["baseline risk"])
-
-        return Decision(
+        decision = Decision(
             agent_name=self.name,
             transaction_id=txn.transaction_id,
             action=chosen,
             risk_score=risk,
             reasons=reasons,
-            explanation=explanation,
         )
+        if not self.defer_llm and self.should_explain(chosen):
+            decision.explanation = self.explain(decision, txn)
+        return decision

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+.r1 {font-weight: bold}
+.r2 {color: #008080; text-decoration-color: #008080; font-weight: bold}
+.r3 {font-style: italic}
+.r4 {color: #7f7f7f; text-decoration-color: #7f7f7f}
+.r5 {color: #008000; text-decoration-color: #008000}
+.r6 {color: #808000; text-decoration-color: #808000}
+.r7 {color: #d78700; text-decoration-color: #d78700}
+.r8 {color: #800000; text-decoration-color: #800000}
+.r9 {color: #800080; text-decoration-color: #800080}
+body {
+    color: #000000;
+    background-color: #ffffff;
+}
+</style>
+</head>
+<body>
+    <pre style="font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><code style="font-family:inherit"><span class="r1">Loaded </span><span class="r2">50</span><span class="r1"> transactions (</span><span class="r2">9</span><span class="r1"> labeled fraud)</span>
+
+<span class="r3">                                            Agent decisions across all 50 transactions                                             </span>
+┏━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
+┃<span class="r1"> Txn      </span>┃<span class="r1">    Amount </span>┃<span class="r1"> Fraud? </span>┃<span class="r1"> 1. Simple Reflex </span>┃<span class="r1"> 2. Model-Based Reflex </span>┃<span class="r1"> 3. Goal-Based </span>┃<span class="r1"> 4. Utility-Based </span>┃<span class="r1"> 5. Learning Agent </span>┃
+┡━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│<span class="r4"> 6a5c1af5 </span>│    $13.63 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> bcecb4cb </span>│    $96.94 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 19aa378a </span>│     $9.38 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 6a724e49 </span>│    $40.96 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> 6af19ec2 </span>│    $84.10 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 975c7847 </span>│   $162.70 │   no   │     <span class="r5">APPROVE</span>      │     <span class="r6">STEP_UP_AUTH</span>      │ <span class="r6">STEP_UP_AUTH</span>  │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r6">STEP_UP_AUTH</span>    │
+│<span class="r4"> e9609ae9 </span>│   $125.03 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 8439537a </span>│    $13.91 │  <span class="r8">YES</span>   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> 1deda001 </span>│     $9.39 │  <span class="r8">YES</span>   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> 5dd6ba9d </span>│     $2.57 │  <span class="r8">YES</span>   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> 7c9fc8d9 </span>│    $14.79 │  <span class="r8">YES</span>   │     <span class="r5">APPROVE</span>      │     <span class="r7">MANUAL_REVIEW</span>     │ <span class="r7">MANUAL_REVIEW</span> │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> cc599f7e </span>│    $17.71 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 92541aac </span>│    $80.34 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 075aba4b </span>│   $371.84 │  <span class="r8">YES</span>   │     <span class="r5">APPROVE</span>      │        <span class="r8">DECLINE</span>        │ <span class="r7">MANUAL_REVIEW</span> │  <span class="r7">MANUAL_REVIEW</span>   │      <span class="r8">DECLINE</span>      │
+│<span class="r4"> 1f32a943 </span>│   $191.69 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 1d563f3d </span>│    $85.34 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 9e028e58 </span>│   $156.79 │   no   │     <span class="r5">APPROVE</span>      │     <span class="r6">STEP_UP_AUTH</span>      │ <span class="r6">STEP_UP_AUTH</span>  │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 7e01b9fe </span>│   $162.57 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> bd5a2e69 </span>│   $204.18 │   no   │     <span class="r5">APPROVE</span>      │     <span class="r6">STEP_UP_AUTH</span>      │ <span class="r6">STEP_UP_AUTH</span>  │  <span class="r7">MANUAL_REVIEW</span>   │   <span class="r6">STEP_UP_AUTH</span>    │
+│<span class="r4"> 2f5fb3f1 </span>│    $29.18 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> 2b5d7265 </span>│   $170.88 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r6">STEP_UP_AUTH</span>    │
+│<span class="r4"> 1fdc48f6 </span>│    $74.88 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> 8c5f537a </span>│    $27.15 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> af8d0670 </span>│   $128.24 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> c51ae9ef </span>│    $28.32 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> 1ebdac27 </span>│   $964.20 │  <span class="r8">YES</span>   │     <span class="r5">APPROVE</span>      │     <span class="r6">STEP_UP_AUTH</span>      │ <span class="r6">STEP_UP_AUTH</span>  │  <span class="r7">MANUAL_REVIEW</span>   │   <span class="r6">STEP_UP_AUTH</span>    │
+│<span class="r4"> 8b1b3b48 </span>│   $195.55 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │  <span class="r7">MANUAL_REVIEW</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> bbe08903 </span>│   $165.94 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 263007af </span>│ $2,660.51 │  <span class="r8">YES</span>   │     <span class="r8">DECLINE</span>      │     <span class="r6">STEP_UP_AUTH</span>      │    <span class="r8">DECLINE</span>    │     <span class="r8">DECLINE</span>      │      <span class="r8">DECLINE</span>      │
+│<span class="r4"> 5372dd27 </span>│   $198.34 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 2c09c0be </span>│ $5,857.45 │  <span class="r8">YES</span>   │     <span class="r8">DECLINE</span>      │     <span class="r6">STEP_UP_AUTH</span>      │    <span class="r8">DECLINE</span>    │     <span class="r8">DECLINE</span>      │      <span class="r8">DECLINE</span>      │
+│<span class="r4"> 20d68097 </span>│ $4,359.48 │   no   │   <span class="r6">STEP_UP_AUTH</span>   │     <span class="r6">STEP_UP_AUTH</span>      │ <span class="r6">STEP_UP_AUTH</span>  │     <span class="r8">DECLINE</span>      │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> cdd37a5d </span>│ $4,086.70 │  <span class="r8">YES</span>   │   <span class="r6">STEP_UP_AUTH</span>   │     <span class="r6">STEP_UP_AUTH</span>      │ <span class="r6">STEP_UP_AUTH</span>  │     <span class="r8">DECLINE</span>      │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> 533018ae </span>│    $37.33 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r6">STEP_UP_AUTH</span>    │
+│<span class="r4"> 563c723a </span>│ $2,794.18 │   no   │   <span class="r6">STEP_UP_AUTH</span>   │     <span class="r6">STEP_UP_AUTH</span>      │ <span class="r6">STEP_UP_AUTH</span>  │  <span class="r7">MANUAL_REVIEW</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 3d05f12c </span>│    $31.25 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 847cd1e9 </span>│ $2,679.54 │   no   │   <span class="r6">STEP_UP_AUTH</span>   │     <span class="r6">STEP_UP_AUTH</span>      │ <span class="r6">STEP_UP_AUTH</span>  │  <span class="r7">MANUAL_REVIEW</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 194a05fd </span>│    $89.57 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 84fa7385 </span>│    $46.65 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> 46cd3f61 </span>│   $109.21 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> 86a1ee98 </span>│   $190.49 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 56e089bd </span>│   $195.58 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> d0f0c1c2 </span>│    $47.38 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> 1d10df65 </span>│   $100.17 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r7">MANUAL_REVIEW</span>   │
+│<span class="r4"> d6ec1088 </span>│    $55.90 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r6">STEP_UP_AUTH</span>    │
+│<span class="r4"> 8faa2222 </span>│   $168.91 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r6">STEP_UP_AUTH</span>    │
+│<span class="r4"> f0ec575d </span>│    $63.84 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r6">STEP_UP_AUTH</span>    │
+│<span class="r4"> abc112bb </span>│    $78.01 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │   <span class="r6">STEP_UP_AUTH</span>    │
+│<span class="r4"> 2a876a92 </span>│   $192.55 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+│<span class="r4"> c0fbd3df </span>│    $40.40 │   no   │     <span class="r5">APPROVE</span>      │        <span class="r5">APPROVE</span>        │    <span class="r5">APPROVE</span>    │   <span class="r6">STEP_UP_AUTH</span>   │      <span class="r5">APPROVE</span>      │
+└──────────┴───────────┴────────┴──────────────────┴───────────────────────┴───────────────┴──────────────────┴───────────────────┘
+
+<span class="r3">     Precision / Recall vs. ground truth (any non-APPROVE = flagged)     </span>
+┏━━━━━━━━━━━━━━━━━━━━━━━┳━━━━┳━━━━┳━━━━┳━━━━┳━━━━━━━━━━━┳━━━━━━━━┳━━━━━━┓
+┃<span class="r1"> Agent                 </span>┃<span class="r1"> TP </span>┃<span class="r1"> FP </span>┃<span class="r1"> TN </span>┃<span class="r1"> FN </span>┃<span class="r1"> Precision </span>┃<span class="r1"> Recall </span>┃<span class="r1"> F1   </span>┃
+┡━━━━━━━━━━━━━━━━━━━━━━━╇━━━━╇━━━━╇━━━━╇━━━━╇━━━━━━━━━━━╇━━━━━━━━╇━━━━━━┩
+│ 1. Simple Reflex      │ 3  │ 3  │ 38 │ 6  │ 0.50      │ 0.33   │ 0.40 │
+│ 2. Model-Based Reflex │ 6  │ 6  │ 35 │ 3  │ 0.50      │ 0.67   │ 0.57 │
+│ 3. Goal-Based         │ 6  │ 6  │ 35 │ 3  │ 0.50      │ 0.67   │ 0.57 │
+│ 4. Utility-Based      │ 9  │ 41 │ 0  │ 0  │ 0.18      │ 1.00   │ 0.31 │
+│ 5. Learning Agent     │ 9  │ 19 │ 22 │ 0  │ 0.32      │ 1.00   │ 0.49 │
+└───────────────────────┴────┴────┴────┴────┴───────────┴────────┴──────┘
+
+<span class="r1">LLM usage</span> <span class="r1">(</span>run run-<span class="r2">20260928</span>-<span class="r2">101322</span>-2a80, <span class="r6">mode</span>=<span class="r9">flagged</span><span class="r1">)</span>: <span class="r2">12</span>/<span class="r2">50</span> goal-based decisions explained -&gt; <span class="r2">0</span> Mistral requests <span class="r1">(</span><span class="r2">0</span> ok, <span class="r2">0</span> failed<span class="r1">)</span>, <span class="r2">12</span> cache 
+hits, <span class="r2">0</span> template fallbacks, avg latency <span class="r2">0.</span>00s
+</code></pre>
+</body>
+</html>

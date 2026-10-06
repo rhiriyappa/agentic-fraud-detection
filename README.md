@@ -1,16 +1,16 @@
 # Agentic Fraud Detection Demo
 
-A stripped-down, runnable demonstration of the five classic AI agent
+A stripped down, runnable demonstration of the five classic AI agent
 architectures (Russell & Norvig's taxonomy), each applied to a **distinct**
-payment-fraud use case:
+payment fraud use case:
 
 | # | Agent type | Use case | What makes it that type |
 |---|---|---|---|
-| 1 | **Simple Reflex** | Point-of-sale hard-limit gatekeeper | Maps the *current transaction alone* to an action via fixed condition-action rules (amount ceilings, blocked countries/categories). No memory. |
-| 2 | **Model-Based Reflex** | Card-velocity & impossible-travel detector | Reconstructs internal state (recent transaction history) from SQLite before applying rules -- catches patterns a single transaction can't reveal. |
-| 3 | **Goal-Based** | Adaptive checkout-flow orchestrator | Holds the goal "resolve the transaction safely with minimal friction" and *searches* the action space `[APPROVE < STEP_UP_AUTH < MANUAL_REVIEW < DECLINE]` for the least-friction action that satisfies it. Narrates its reasoning via Mistral 7B. |
-| 4 | **Utility-Based** | Expected-value checkout optimizer | Assigns a monetary expected utility to every action (fraud loss vs. merchant margin vs. customer-friction cost vs. review cost) and picks the argmax. |
-| 5 | **Learning Agent** | Adaptive fraud-scoring model | An online logistic-regression classifier (scikit-learn `SGDClassifier`) trained on labeled transactions, with a `learn_one()` feedback hook for chargebacks / cleared false positives. |
+| 1 | **Simple Reflex** | Point of sale hard limit gatekeeper | Maps the *current transaction alone* to an action via fixed condition action rules (amount ceilings, blocked countries/categories). No memory. |
+| 2 | **Model-Based Reflex** | Card velocity & impossible travel detector | Reconstructs internal state (recent transaction history) from SQLite before applying rules - catches patterns a single transaction can't reveal. |
+| 3 | **Goal-Based** | Adaptive checkout flow orchestrator | Holds the goal "resolve the transaction safely with minimal friction" and *searches* the action space `[APPROVE < STEP_UP_AUTH < MANUAL_REVIEW < DECLINE]` for the least friction action that satisfies it. Narrates its reasoning via Mistral 7B. |
+| 4 | **Utility-Based** | Expected value checkout optimizer | Assigns a monetary expected utility to every action (fraud loss vs. merchant margin vs. customer friction cost vs. review cost) and picks the argmax. |
+| 5 | **Learning Agent** | Adaptive fraud scoring model | An online logistic regression classifier (scikit-learn `SGDClassifier`) trained on labeled transactions, with a `learn_one()` feedback hook for chargebacks / cleared false positives. |
 
 All five agents run over the **same 50 synthetic transactions** so you can see,
 side by side, how each type of "agentic-ness" changes the outcome.
@@ -49,7 +49,7 @@ side by side, how each type of "agentic-ness" changes the outcome.
                                       ▼
                           ┌────────────────────┐ HTTP/api/generate ┌───────────────────┐
                           │   src/llm.py       │──────────────────▶│ Ollama server     │
-                          │ (client + offline  │ ──────────────────│ Mistral 7B (local)│
+                          │ (client + offline  │←──────────────────│ Mistral 7B (local)│
                           │  template fallback)│      completion   │ no API key needed │
                           └────────────────────┘                   └───────────────────┘
 
@@ -69,11 +69,12 @@ side by side, how each type of "agentic-ness" changes the outcome.
                                                   learn / scoreboard
 ```
 
-Only the **goal-based agent** calls out to Mistral (for its analyst-facing
-narration); the other four agents are deliberately dependency-free rule/math/
-ML logic so the differences between agent *types* stay easy to read in the
-source. If Ollama isn't reachable, `src/llm.py` transparently falls back to a
-templated explanation string, so the whole pipeline still runs offline.
+Only the **goal-based agent** calls out to Mistral (for its analyst facing
+narration of *flagged* decisions); the other four agents are deliberately
+dependency free rule/math/ML logic so the differences between agent *types*
+stay easy to read in the source. If Ollama isn't reachable, `src/llm.py`
+transparently falls back to a templated explanation string, so the whole
+pipeline still runs offline. See [LLM usage & observability](#llm-usage--observability).
 
 ## Tech stack (all open source)
 
@@ -93,6 +94,9 @@ agentic_ai/
 │   ├── generate_transactions.py   # generates the 50 sample transactions (seeded)
 │   ├── sample_transactions.csv     # committed snapshot of the generated data
 │   └── fraud_agents.db              # SQLite db (generated, gitignored)
+|── data/
+|   ├── agent_decisions.html        # Scorecard
+│   ├── agent_scorecard.png     # Scorecard in PNG
 ├── src/
 │   ├── db.py                        # SQLite schema + helpers
 │   ├── llm.py                       # Mistral 7B client (via Ollama) with offline fallback
@@ -138,10 +142,48 @@ but legitimate purchases (to stress-test the utility trade-off). Re-run with
 ## Run the CLI demo
 
 ```bash
-python scripts/run_demo.py                 # full comparison + scoreboard (uses Mistral if reachable)
-python scripts/run_demo.py --no-llm         # skip LLM narration (faster, fully offline)
-python scripts/run_demo.py --txn <txn_id>    # deep-dive one transaction across all 5 agents
+python scripts/run_demo.py                       # full comparison + scoreboard; Mistral explains flagged decisions
+python scripts/run_demo.py --llm-mode off         # no LLM calls (fastest, fully offline)
+python scripts/run_demo.py --llm-mode all          # explain every goal-based decision
+python scripts/run_demo.py --no-cache               # ignore the SQLite LLM response cache
+python scripts/run_demo.py -v                        # log every LLM call
+python scripts/run_demo.py --txn <txn_id>             # deep-dive one transaction across all 5 agents
 ```
+
+Each run also writes `output/agent_decisions.html` (gitignored).
+
+## LLM usage & observability
+
+Mistral only narrates decisions the goal-based agent has already made; it never
+changes an action or risk score. To keep that cheap:
+
+- **`--llm-mode flagged` (default)** explains only non-APPROVE decisions. On the
+  sample data that is 12 of 50 decisions instead of 50.
+- **Response cache** (`llm_cache` table) is keyed by a hash of the exact request, so
+  re-running the demo costs zero Mistral calls.
+- **Every run prints a usage line** (requests, failures, cache hits, template
+  fallbacks, average latency) and stores it in the `runs` table.
+- **`run_id`** tags every row in `decisions`, so runs no longer pile up together.
+
+Measured on this repo's 50 transactions with local Mistral 7B (one worker):
+
+| Config | Mistral requests | Wall time |
+|---|---|---|
+| `--llm-mode all --no-cache` (previous behaviour) | 50 | ~170s |
+| `--llm-mode flagged --no-cache` | 12 | ~30s |
+| `--llm-mode flagged`, re-run (warm cache) | 0 | ~1s |
+
+Useful queries:
+
+```sql
+SELECT run_id, llm_mode, llm_requests, llm_cache_hits, llm_avg_latency_s FROM runs ORDER BY created_at;
+SELECT * FROM decisions WHERE run_id = (SELECT run_id FROM runs ORDER BY created_at DESC LIMIT 1);
+```
+
+Ollama handles one request at a time by default, so explanations run with one
+worker. If you raise `OLLAMA_NUM_PARALLEL`, set `LLM_MAX_WORKERS` to match; more
+workers than that only queue and inflate latency. The API exposes the same
+counters at `GET /llm-stats`.
 
 ## Run the API
 
@@ -163,6 +205,9 @@ Key endpoints:
 ```bash
 pytest tests/ -q
 ```
+
+## Scorecard Output
+![Scorecard](/output/scorecard_summary.png)
 
 ## Why each agent behaves differently (the point of the demo)
 

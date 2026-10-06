@@ -1,14 +1,18 @@
 """SQLite persistence layer.
 
-Stripped-down on purpose: plain stdlib sqlite3, no ORM. Two tables:
+Stripped-down on purpose: plain stdlib sqlite3, no ORM. Tables:
   transactions  - the 50 synthetic payment transactions (+ ground-truth label)
-  decisions     - every decision each agent makes, for later comparison/eval
+  decisions     - every decision each agent makes, tagged with the run_id that produced it
+  runs          - one row per demo run: LLM mode plus LLM call/cache/latency counters
+  llm_cache     - Mistral responses keyed by a hash of the exact prompt, so re-runs are free
 """
 
 from __future__ import annotations
 
 import sqlite3
+import uuid
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 
 from src.models import Transaction, Decision
@@ -35,6 +39,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 CREATE TABLE IF NOT EXISTS decisions (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id           TEXT NOT NULL,
     agent_name       TEXT NOT NULL,
     transaction_id    TEXT NOT NULL REFERENCES transactions(transaction_id),
     action              TEXT NOT NULL,
@@ -44,6 +49,27 @@ CREATE TABLE IF NOT EXISTS decisions (
     created_at              TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS runs (
+    run_id               TEXT PRIMARY KEY,
+    created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+    llm_mode               TEXT NOT NULL,
+    n_transactions          INTEGER NOT NULL,
+    llm_requests             INTEGER NOT NULL,
+    llm_ok                    INTEGER NOT NULL,
+    llm_errors                 INTEGER NOT NULL,
+    llm_cache_hits              INTEGER NOT NULL,
+    llm_fallbacks                INTEGER NOT NULL,
+    llm_avg_latency_s             REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS llm_cache (
+    cache_key     TEXT PRIMARY KEY,
+    model          TEXT NOT NULL,
+    response        TEXT NOT NULL,
+    created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_decisions_run ON decisions(run_id);
 CREATE INDEX IF NOT EXISTS idx_decisions_txn ON decisions(transaction_id);
 CREATE INDEX IF NOT EXISTS idx_txn_user_ts ON transactions(user_id, timestamp);
 """
@@ -63,9 +89,21 @@ def get_conn():
 
 
 def init_db(reset: bool = False) -> None:
+    """Create tables (idempotent). `reset=True` also wipes transactions,
+    decisions and runs; the LLM cache is kept since it is keyed by prompt.
+
+    A decisions table from before run_id existed is dropped: it only holds
+    derived data that any demo run regenerates.
+    """
     with get_conn() as conn:
         if reset:
-            conn.executescript("DROP TABLE IF EXISTS decisions; DROP TABLE IF EXISTS transactions;")
+            conn.executescript(
+                "DROP TABLE IF EXISTS decisions; DROP TABLE IF EXISTS runs; "
+                "DROP TABLE IF EXISTS transactions;"
+            )
+        columns = {r["name"] for r in conn.execute("PRAGMA table_info(decisions)")}
+        if columns and "run_id" not in columns:
+            conn.execute("DROP TABLE decisions")
         conn.executescript(SCHEMA)
 
 
@@ -115,30 +153,72 @@ def fetch_user_history(user_id: str, before_timestamp: str, limit: int = 20) -> 
     return [_row_to_transaction(r) for r in rows]
 
 
-def save_decision(decision: Decision) -> None:
+def new_run_id(prefix: str = "run") -> str:
+    return f"{prefix}-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:4]}"
+
+
+def save_decisions(decisions: list[Decision], run_id: str) -> None:
+    with get_conn() as conn:
+        conn.executemany(
+            """INSERT INTO decisions
+               (run_id, agent_name, transaction_id, action, risk_score, reasons, explanation)
+               VALUES (?,?,?,?,?,?,?)""",
+            [
+                (
+                    run_id,
+                    d.agent_name,
+                    d.transaction_id,
+                    d.action.value,
+                    d.risk_score,
+                    "; ".join(d.reasons),
+                    d.explanation,
+                )
+                for d in decisions
+            ],
+        )
+
+
+def fetch_decisions(agent_name: str | None = None, run_id: str | None = None) -> list[sqlite3.Row]:
+    query, params = "SELECT * FROM decisions WHERE 1=1", []
+    if agent_name:
+        query += " AND agent_name = ?"
+        params.append(agent_name)
+    if run_id:
+        query += " AND run_id = ?"
+        params.append(run_id)
+    with get_conn() as conn:
+        return conn.execute(query + " ORDER BY id", params).fetchall()
+
+
+def save_run(run_id: str, llm_mode: str, n_transactions: int, stats: dict) -> None:
     with get_conn() as conn:
         conn.execute(
-            """INSERT INTO decisions
-               (agent_name, transaction_id, action, risk_score, reasons, explanation)
-               VALUES (?,?,?,?,?,?)""",
+            """INSERT INTO runs
+               (run_id, llm_mode, n_transactions, llm_requests, llm_ok, llm_errors,
+                llm_cache_hits, llm_fallbacks, llm_avg_latency_s)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
             (
-                decision.agent_name,
-                decision.transaction_id,
-                decision.action.value,
-                decision.risk_score,
-                "; ".join(decision.reasons),
-                decision.explanation,
+                run_id, llm_mode, n_transactions, stats["requests"], stats["ok"],
+                stats["errors"], stats["cache_hits"], stats["fallbacks"],
+                stats["avg_latency_s"],
             ),
         )
 
 
-def fetch_decisions(agent_name: str | None = None) -> list[sqlite3.Row]:
+def get_llm_cache(cache_key: str) -> str | None:
     with get_conn() as conn:
-        if agent_name:
-            return conn.execute(
-                "SELECT * FROM decisions WHERE agent_name = ? ORDER BY id", (agent_name,)
-            ).fetchall()
-        return conn.execute("SELECT * FROM decisions ORDER BY id").fetchall()
+        row = conn.execute(
+            "SELECT response FROM llm_cache WHERE cache_key = ?", (cache_key,)
+        ).fetchone()
+    return row["response"] if row else None
+
+
+def put_llm_cache(cache_key: str, model: str, response: str) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO llm_cache (cache_key, model, response) VALUES (?,?,?)",
+            (cache_key, model, response),
+        )
 
 
 def _row_to_transaction(row: sqlite3.Row) -> Transaction:

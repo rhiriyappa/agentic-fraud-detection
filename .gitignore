@@ -10,3 +10,4 @@ data/fraud_agents.db
 .idea/
 .vscode/
 *.egg-info/
+Ignore-RH_Scripts/

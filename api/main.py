@@ -28,13 +28,16 @@ app = FastAPI(
     version="0.1.0",
 )
 
+db.init_db()
+RUN_ID = db.new_run_id("api")  # every decision this server process saves shares one run_id
+
 _agents_cache = None
 
 
 def get_agents():
     global _agents_cache
     if _agents_cache is None:
-        _agents_cache = build_agents(use_llm=llm.is_available())
+        _agents_cache = build_agents(llm_mode="flagged" if llm.is_available() else "off")
         _agents_cache["learning_agent"].fit(db.fetch_all_transactions())
     return _agents_cache
 
@@ -90,7 +93,7 @@ def evaluate(transaction_id: str, agent_name: str):
     if agent_name not in agents:
         raise HTTPException(status_code=404, detail=f"unknown agent '{agent_name}'")
     decision = agents[agent_name].run(txn)
-    db.save_decision(decision)
+    db.save_decisions([decision], RUN_ID)
     return DecisionResponse(**decision.as_dict())
 
 
@@ -103,7 +106,7 @@ def evaluate_all(transaction_id: str):
     out = {}
     for name, agent in agents.items():
         decision = agent.run(txn)
-        db.save_decision(decision)
+        db.save_decisions([decision], RUN_ID)
         out[name] = decision.as_dict()
     return out
 
@@ -123,5 +126,11 @@ def learn_from_feedback(transaction_id: str, body: LearnRequest):
 @app.get("/scoreboard")
 def scoreboard():
     transactions = db.fetch_all_transactions()
-    results = run_all(transactions, use_llm=False, persist=False)
-    return {name: score(transactions, decisions) for name, decisions in results.items()}
+    run = run_all(transactions, llm_mode="off", persist=False)
+    return {name: score(transactions, decisions) for name, decisions in run.decisions.items()}
+
+
+@app.get("/llm-stats")
+def llm_stats():
+    """Mistral call counters for this server process (requests, cache hits, fallbacks, latency)."""
+    return llm.get_stats().as_dict()

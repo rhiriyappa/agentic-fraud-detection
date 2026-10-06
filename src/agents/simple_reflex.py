@@ -1,15 +1,15 @@
 """Simple Reflex Agent
 ======================
-Use case: point-of-sale / card-present hard-limit gatekeeper.
+Use case: point-of-sale / card present hard limit gatekeeper.
 
 A simple reflex agent maps the *current percept only* to an action via
-condition-action rules. It has no memory of past transactions and does not
-model the world -- exactly the kind of instant "swipe the card" decision a
+condition action rules. It has no memory of past transactions and does not
+model the world - exactly the kind of instant "swipe the card" decision a
 terminal must make in milliseconds, before any history lookup is even
 possible.
 
 Rules are intentionally simple and fully explainable: hard amount ceilings,
-a merchant-category blocklist, and a country blocklist.
+a merchant category blocklist, and a country blocklist.
 """
 
 from __future__ import annotations

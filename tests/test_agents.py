@@ -58,14 +58,6 @@ def test_simple_reflex_declines_over_hard_ceiling():
 
 # --- Model-Based Reflex Agent ------------------------------------------------
 
-@pytest.fixture(autouse=True)
-def fresh_db(monkeypatch, tmp_path):
-    test_db_path = tmp_path / "test.db"
-    monkeypatch.setattr(db, "DB_PATH", test_db_path)
-    db.init_db(reset=True)
-    yield
-
-
 def test_model_based_reflex_flags_velocity_burst():
     agent = ModelBasedReflexAgent()
     base_time = datetime(2026, 1, 1, 12, 0, 0)
@@ -100,13 +92,13 @@ def test_model_based_reflex_flags_impossible_travel():
 # --- Goal-Based Agent ---------------------------------------------------------
 
 def test_goal_based_approves_low_risk():
-    agent = GoalBasedAgent(use_llm=False)
+    agent = GoalBasedAgent(llm_mode="off")
     decision = agent.run(make_txn(amount=30.0))
     assert decision.action == Action.APPROVE
 
 
 def test_goal_based_declines_high_risk():
-    agent = GoalBasedAgent(use_llm=False)
+    agent = GoalBasedAgent(llm_mode="off")
     decision = agent.run(make_txn(country="IR"))
     assert decision.action == Action.DECLINE
 
