@@ -1,4 +1,4 @@
-# Agentic Fraud Detection Demo
+# Improve Fraud Detection with AI Agents
 
 A stripped down, runnable demonstration of the five classic AI agent
 architectures (Russell & Norvig's taxonomy), each applied to a **distinct**
